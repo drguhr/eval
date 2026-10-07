@@ -262,38 +262,23 @@ input:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(53,9
 </div>
 
 <!-- Admin screen -->
-<div id="admin-screen" class="screen" style="max-width:900px">
-  <div class="card" style="margin-bottom:20px;padding:20px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <h2 style="flex:1">HR 評核管理後台</h2>
-      <button class="btn btn-secondary btn-sm" onclick="goAdmin()">← 返回</button>
+<div id="admin-screen" class="screen">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <h2 style="flex:1">HR 後台</h2>
+      <button class="btn btn-secondary btn-sm" onclick="goLogin()">← 返回登入</button>
     </div>
-    <div class="stat-grid" id="stat-grid">
-      <div class="loading"><div class="spinner"></div>載入中…</div>
+    <p style="font-size:14px;color:var(--sub);margin-bottom:20px;line-height:1.7">
+      評核資料即時儲存於 Google 試算表，包含三個工作表：<br>
+      <strong>提交紀錄</strong>（每人一筆摘要）、<strong>評核明細</strong>（每題分數）、<strong>整體回饋</strong>（文字回饋）。
+    </p>
+    <a id="sheet-link" href="#" target="_blank" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:12px">
+      📊 開啟 Google 試算表查看結果
+    </a>
+    <div style="background:var(--navy-lt);border-radius:8px;padding:16px;font-size:13px;color:var(--navy-dk)">
+      <strong>應填人數：</strong><span id="emp-count"></span> 人<br>
+      <span style="color:var(--sub);font-size:12px;margin-top:4px;display:block">已填寫人數請至試算表「提交紀錄」工作表查看</span>
     </div>
-  </div>
-  <div class="card" style="padding:20px">
-    <div class="admin-tabs">
-      <button class="admin-tab active" onclick="switchTab('all')">全部</button>
-      <button class="admin-tab" onclick="switchTab('site')">院區員工</button>
-      <button class="admin-tab" onclick="switchTab('hq')">後勤集團</button>
-    </div>
-    <div class="filter-row">
-      <select id="filter-branch" onchange="renderTable()">
-        <option value="">全部院區／部門</option>
-        <option>大安院區</option>
-        <option>中山院區</option>
-        <option>桃園院區</option>
-        <option>台中院區</option>
-        <option>集團辦公室</option>
-      </select>
-      <select id="filter-status" onchange="renderTable()">
-        <option value="">全部狀態</option>
-        <option value="done">已完成</option>
-        <option value="pending">未填寫</option>
-      </select>
-    </div>
-    <div id="result-area"><div class="loading"><div class="spinner"></div>載入中…</div></div>
   </div>
 </div>
 
@@ -775,69 +760,59 @@ async function nextUnit() {
   const unit = currentUnits[currentUnitIdx];
   const data = answers[unit];
 
-  // 無實際往來 → 直接跳過驗證
-  if (data.frequency === 0) {
-    if (currentUnitIdx < currentUnits.length - 1) {
-      currentUnitIdx++;
-      renderUnit();
-    } else {
-      await submitAll();
-    }
-    return;
-  }
-
-  // 未選合作頻率
   const navErr = document.getElementById('nav-err');
   const showErr = msg => { navErr.textContent = msg; navErr.style.display='block'; window.scrollTo(0, document.body.scrollHeight); };
   navErr.style.display = 'none';
 
-  if (data.frequency === null) {
-    showErr('⚠️ 請先選擇合作頻率後再繼續。');
-    return;
+  // 無實際往來 → 直接跳過驗證，但仍需走 _advanceOrSelect
+  if (data.frequency !== 0) {
+    // 未選合作頻率
+    if (data.frequency === null) {
+      showErr('⚠️ 請先選擇合作頻率後再繼續。');
+      return;
+    }
+
+    // Validate: all questions answered
+    const unanswered = data.scores.map((s,i)=>s===null?i:-1).filter(i=>i>=0);
+    if (unanswered.length) {
+      showErr(`⚠️ 還有 ${unanswered.length} 題未評分（第 ${unanswered.map(i=>i+1).join('、')} 題），請完成後繼續。`);
+      return;
+    }
+
+    // Check if total score < 30 → require reason before proceeding
+    const numericScores = data.scores.filter(s => typeof s === 'number');
+    const totalScore = numericScores.reduce((a, b) => a + b, 0);
+    if (totalScore < 30 && !data.lowScoreReason) {
+      showLowScorePrompt(unit, totalScore, () => _advanceOrSelect());
+      return;
+    }
   }
 
-  // Validate: all questions answered
-  const unanswered = data.scores.map((s,i)=>s===null?i:-1).filter(i=>i>=0);
-  if (unanswered.length) {
-    showErr(`⚠️ 還有 ${unanswered.length} 題未評分（第 ${unanswered.map(i=>i+1).join('、')} 題），請完成後繼續。`);
-    return;
-  }
-  // Check if total score < 30 → require reason before proceeding
-  const numericScores = data.scores.filter(s => typeof s === 'number');
-  const totalScore = numericScores.reduce((a, b) => a + b, 0);
-  if (totalScore < 30 && !data.lowScoreReason) {
-    showLowScorePrompt(unit, totalScore, () => {
-      // callback after reason filled
-      if (currentUnitIdx < currentUnits.length - 1) {
-        currentUnitIdx++;
-        renderUnit();
-      } else {
-        submitAll();
-      }
-    });
-    return;
-  }
+  _advanceOrSelect();
+}
 
+// 驗證通過後：往下一個單位，或觸發 ③④ popup，或送出
+function _advanceOrSelect() {
+  // 還有目前清單內的下一個 → 直接前進
   if (currentUnitIdx < currentUnits.length - 1) {
     currentUnitIdx++;
     renderUnit();
     return;
   }
 
-  // 所有目前單位評完 → 看看還有沒有待選的
+  // 所有目前單位評完 → 看 pending ③
   if (_pendingSelects.needUnit3) {
     _pendingSelects.needUnit3 = false;
     showUnit3Select(function(chosen) {
-      // 把 ③ 加進去
       initUnitAnswer(chosen);
       currentUnits.push(chosen);
-      currentUnitIdx++;
+      currentUnitIdx = currentUnits.length - 1; // 指向剛 push 進去的
       renderUnit();
-      // 評完 ③ 後若還有 ④ 會在下一輪 nextUnit 末段處理
     });
     return;
   }
 
+  // pending ④
   if (_pendingSelects.needUnit4) {
     _pendingSelects.needUnit4 = false;
     showSelfSelect(function(chosen) {
@@ -845,7 +820,7 @@ async function nextUnit() {
         initUnitAnswer(chosen);
         currentUnits.push(chosen);
         currentSelfUnit = chosen;
-        currentUnitIdx++;
+        currentUnitIdx = currentUnits.length - 1;
         renderUnit();
       } else {
         submitAll();
@@ -854,7 +829,7 @@ async function nextUnit() {
     return;
   }
 
-  await submitAll();
+  submitAll();
 }
 
 function initUnitAnswer(u) {
@@ -899,174 +874,11 @@ function submitAll() {
 /* ═══════════════════════════════
    ADMIN
 ═══════════════════════════════ */
-async function loadAdmin() {
-  // Submissions stored in Google Sheets — show link and employee status table
-  document.getElementById('stat-grid').innerHTML = `
-    <div class="stat-box" style="grid-column:1/-1;text-align:left;padding:16px 20px">
-      <div style="font-size:14px;color:var(--navy-dk);font-weight:700;margin-bottom:8px">📊 評核資料儲存於 Google 試算表</div>
-      <a href="${GAS_URL.replace('/exec','')}" target="_blank"
-        style="color:var(--navy);font-size:13px;text-decoration:underline">
-        點此開啟 Apps Script（從試算表查看結果）
-      </a>
-      <div style="font-size:12px;color:var(--sub);margin-top:6px">
-        在 Google 試算表中可查看「提交紀錄」「評核明細」「整體回饋」三個工作表。
-      </div>
-    </div>
-    <div class="stat-box"><div class="stat-num">${EMPLOYEES.length}</div><div class="stat-lbl">應填人數</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:var(--sub)">—</div><div class="stat-lbl">已完成（見試算表）</div></div>
-  `;
-  renderTable();
-}
-
-async function loadAllResponses() {
-  if (!db) return;
-  adminSubmissions = [];
-  const found = new Map(); // name → data
-
-  // 1. Try shared submissions/ path (Contributor+ users)
-  try {
-    const snap = await db.collection('submissions').get();
-    if (snap && snap.docs) {
-      snap.docs.forEach(d => {
-        const data = d.data();
-        if (data && data.name) found.set(data.name, data);
-      });
-    }
-  } catch(e) {}
-
-  // 2. Try idx/ entries (index written alongside private path)
-  try {
-    const snap = await db.collection('idx').get();
-    if (snap && snap.docs) {
-      const privPromises = snap.docs.map(async d => {
-        const idx = d.data();
-        if (!idx || !idx.uid || !idx.name || found.has(idx.name)) return;
-        // Fetch the full private doc
-        try {
-          const full = await db.doc('data/users/' + idx.uid + '/result').get();
-          if (full.exists) found.set(idx.name, full.data());
-        } catch(_) {
-          // Can't read private doc (not owner) — use index data only
-          found.set(idx.name, { name: idx.name, branch: idx.branch, dept: idx.dept, submittedAt: idx.submittedAt, _indexOnly: true });
-        }
-      });
-      await Promise.all(privPromises);
-    }
-  } catch(e) {}
-
-  // 3. Fallback: direct BIRTH-keyed lookup in submissions/
-  if (found.size === 0) {
-    const promises = EMPLOYEES.map(async emp => {
-      if (found.has(emp.name)) return;
-      const birthKey = BIRTH[emp.name];
-      if (!birthKey) return;
-      try {
-        const snap = await db.doc('submissions/response_' + emp.name + '_' + birthKey).get();
-        if (snap.exists) found.set(emp.name, snap.data());
-      } catch(_) {}
-    });
-    await Promise.all(promises);
-  }
-
-  adminSubmissions = [...found.values()].filter(Boolean);
-}
-
-function switchTab(tab) {
-  adminTab = tab;
-  document.querySelectorAll('.admin-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['all','site','hq'][i]===tab);
-  });
-  renderTable();
-}
-
-function renderStats() {
-  const total = EMPLOYEES.length;
-  const done = adminSubmissions.length;
-  const site = EMPLOYEES.filter(e=>e.branch!=='集團辦公室').length;
-  const hq = EMPLOYEES.filter(e=>e.branch==='集團辦公室').length;
-  const doneSite = adminSubmissions.filter(s=>s.branch!=='集團辦公室').length;
-  const doneHq = adminSubmissions.filter(s=>s.branch==='集團辦公室').length;
-  document.getElementById('stat-grid').innerHTML = `
-    <div class="stat-box"><div class="stat-num">${done}/${total}</div><div class="stat-lbl">整體完成</div></div>
-    <div class="stat-box"><div class="stat-num">${Math.round(done/total*100)||0}%</div><div class="stat-lbl">完成率</div></div>
-    <div class="stat-box"><div class="stat-num">${doneSite}/${site}</div><div class="stat-lbl">院區員工</div></div>
-    <div class="stat-box"><div class="stat-num">${doneHq}/${hq}</div><div class="stat-lbl">後勤集團</div></div>
-  `;
-}
-
-function renderTable() {
-  const branch = document.getElementById('filter-branch').value;
-  const status = document.getElementById('filter-status').value;
-  const doneNames = new Set(adminSubmissions.map(s=>s.name));
-
-  let emps = EMPLOYEES;
-  if (adminTab === 'site') emps = emps.filter(e=>e.branch!=='集團辦公室');
-  if (adminTab === 'hq') emps = emps.filter(e=>e.branch==='集團辦公室');
-  if (branch) emps = emps.filter(e=>e.branch===branch);
-  if (status === 'done') emps = emps.filter(e=>doneNames.has(e.name));
-  if (status === 'pending') emps = emps.filter(e=>!doneNames.has(e.name));
-
-  if (!emps.length) { document.getElementById('result-area').innerHTML='<p style="padding:20px;color:var(--sub)">無資料</p>'; return; }
-
-  let html = `<table class="result-table">
-    <thead><tr>
-      <th>姓名</th><th>院區／部門</th><th>職類</th><th>評核數</th><th>狀態</th><th>操作</th>
-    </tr></thead><tbody>`;
-
-  emps.forEach(emp => {
-    const done = doneNames.has(emp.name);
-    const sub = adminSubmissions.find(s=>s.name===emp.name);
-    const units = sub ? sub.units : emp.units.filter(Boolean);
-    html += `<tr>
-      <td><strong>${emp.name}</strong></td>
-      <td>${emp.branch}</td>
-      <td>${emp.dept}</td>
-      <td>${units.length} 個</td>
-      <td><span class="tag ${done?'tag-done':'tag-pending'}">${done?'已完成':'未填寫'}</span></td>
-      <td>${done?`<button class="btn btn-secondary btn-sm" onclick="viewDetail('${emp.name}')">查看結果</button>`:'-'}</td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  document.getElementById('result-area').innerHTML = html;
-}
-
-function viewDetail(name) {
-  const sub = adminSubmissions.find(s=>s.name===name);
-  if (!sub) return;
-  let html = `<h3>📋 ${sub.name} 的評核結果</h3>
-    <p style="color:var(--sub);font-size:13px;margin-bottom:16px">${sub.branch} ／ ${sub.dept}　｜　提交時間：${new Date(sub.submittedAt).toLocaleString('zh-TW')}</p>`;
-
-  sub.units.forEach((unit, ui) => {
-    const data = sub.answers[unit];
-    if (!data) return;
-    const avg = data.scores.filter(s=>s!=='N'&&s!==null).reduce((a,b)=>a+b,0) /
-                data.scores.filter(s=>s!=='N'&&s!==null).length || 0;
-    html += `<div style="margin-bottom:20px">
-      <h4 style="color:var(--navy-dk);margin-bottom:10px">評核 ${ui+1}：${unit}　<small style="font-weight:400;color:var(--sub)">平均 ${avg.toFixed(1)}</small></h4>`;
-    QUESTIONS.forEach((q, qi) => {
-      const s = data.scores[qi];
-      const cls = s===5?'s5':s===1||s===2?'s2':s==='N'?'sN':'';
-      html += `<div class="q-row-detail">
-        <span class="q-num">${qi+1}.</span>
-        <span class="q-lbl">${q.t}</span>
-        <span class="score-chip ${cls}">${s??'—'}</span>
-      </div>`;
-      if (data.examples[qi]) html += `<div style="font-size:12px;color:var(--sub);padding:4px 12px 8px;background:#f8f9fc;border-radius:4px;margin:4px 0 4px 24px">${data.examples[qi]}</div>`;
-    });
-    const fbParts = [
-      data.fbGood && `<div><strong>✅ 值得肯定：</strong>${data.fbGood}</div>`,
-      data.fbImprove && `<div><strong>🔧 希望改善：</strong>${data.fbImprove}</div>`,
-      data.fbCooperate && `<div><strong>🤝 可配合事項：</strong>${data.fbCooperate}</div>`,
-      data.fb && `<div><strong>回饋：</strong>${data.fb}</div>`,
-    ].filter(Boolean).join('');
-    if (fbParts) html += `<div style="margin-top:10px;padding:10px;background:var(--navy-lt);border-radius:6px;font-size:13px">${fbParts}</div>`;
-    const freqLabels = ['無實際往來','每週至少一次','每月至少一次','少於每月一次'];
-    if (data.frequency != null) html += `<div style="font-size:12px;color:var(--sub);margin-top:4px">合作頻率：${freqLabels[data.frequency]||''}</div>`;
-    html += '</div>';
-  });
-
-  document.getElementById('detail-content').innerHTML = html;
-  document.getElementById('detail-overlay').classList.add('show');
+function loadAdmin() {
+  // 試算表連結（從 GAS URL 推算 — 實際連結請在此替換）
+  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/edit'; // ← 請替換成實際試算表 URL
+  document.getElementById('sheet-link').href = SHEET_URL;
+  document.getElementById('emp-count').textContent = EMPLOYEES.length;
 }
 
 function closeDetail() {
