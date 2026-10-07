@@ -275,9 +275,14 @@ input:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(53,9
     <a id="sheet-link" href="#" target="_blank" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:12px">
       📊 開啟 Google 試算表查看結果
     </a>
-    <div style="background:var(--navy-lt);border-radius:8px;padding:16px;font-size:13px;color:var(--navy-dk)">
+    <div style="background:var(--navy-lt);border-radius:8px;padding:16px;font-size:13px;color:var(--navy-dk);margin-bottom:12px">
       <strong>應填人數：</strong><span id="emp-count"></span> 人<br>
       <span style="color:var(--sub);font-size:12px;margin-top:4px;display:block">已填寫人數請至試算表「提交紀錄」工作表查看</span>
+    </div>
+    <div style="border-top:1px solid #ddd;padding-top:16px;margin-top:4px">
+      <p style="font-size:13px;color:var(--sub);margin-bottom:10px">🔧 測試用工具</p>
+      <button class="btn btn-danger btn-sm" onclick="clearAllSubmissions()" style="width:100%">🗑️ 清除所有「已提交」紀錄（重置重複提交警告）</button>
+      <p id="clear-msg" style="display:none;font-size:13px;color:var(--ok);margin-top:8px;text-align:center"></p>
     </div>
   </div>
 </div>
@@ -588,6 +593,9 @@ function startEval(units, selfUnit, pending) {
   _pendingSelects = pending || {};
   currentUnitIdx = 0;
   answers = {};
+  // 重置按鈕狀態（重填時 btn-next 可能還是 disabled）
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一個 →'; }
   units.forEach(u => {
     answers[u] = {
       scores: new Array(10).fill(null),
@@ -874,6 +882,17 @@ function submitAll() {
 /* ═══════════════════════════════
    ADMIN
 ═══════════════════════════════ */
+function clearAllSubmissions() {
+  let count = 0;
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('guplus_submitted_')) { localStorage.removeItem(k); count++; }
+  });
+  const msg = document.getElementById('clear-msg');
+  msg.textContent = count > 0 ? `✅ 已清除 ${count} 筆提交紀錄` : '目前沒有任何提交紀錄';
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 3000);
+}
+
 function loadAdmin() {
   // 試算表連結（從 GAS URL 推算 — 實際連結請在此替換）
   const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/edit'; // ← 請替換成實際試算表 URL
