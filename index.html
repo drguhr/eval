@@ -1,0 +1,995 @@
+<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>GU+ 跨單位評核系統</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#35618A; --navy-dk:#1C3D63; --navy-lt:#DDE6EC;
+  --gold:#C5A55A; --gold-lt:#F5EDD8;
+  --red:#DC3C3C; --red-dk:#8F1F1F;
+  --ok:#2e7d32; --ok-lt:#e8f5e9;
+  --bg:#f4f6f9; --white:#fff;
+  --text:#1a1a2e; --sub:#555;
+  --radius:8px; --shadow:0 2px 12px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ── */
+#header{background:var(--navy-dk);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+#header .brand{font-size:18px;font-weight:700;letter-spacing:.05em}
+#header .sub{font-size:12px;opacity:.7;margin-left:auto}
+#user-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:13px;display:none}
+
+/* ── Screens ── */
+.screen{display:none;max-width:640px;margin:32px auto;padding:0 16px}
+.screen.active{display:block}
+
+/* Login */
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px}
+.card h2{color:var(--navy-dk);font-size:22px;margin-bottom:6px}
+.card .desc{color:var(--sub);font-size:14px;margin-bottom:24px;line-height:1.6}
+label{display:block;font-size:14px;font-weight:500;color:var(--navy-dk);margin-bottom:6px}
+input[type=text],input[type=date],select{width:100%;padding:10px 14px;border:1.5px solid #cdd5e0;border-radius:6px;font-size:15px;font-family:inherit;outline:none;transition:.2s}
+input:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(53,97,138,.15)}
+.form-group{margin-bottom:18px}
+.btn{display:inline-block;padding:11px 28px;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:var(--navy);color:#fff;width:100%}
+.btn-primary:hover{background:var(--navy-dk)}
+.btn-secondary{background:transparent;color:var(--navy);border:1.5px solid var(--navy)}
+.btn-secondary:hover{background:var(--navy-lt)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:7px 16px;font-size:13px}
+.err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+.err.show{display:block}
+
+/* Progress */
+#progress-bar{background:var(--navy-lt);height:4px;margin-bottom:24px;border-radius:2px;overflow:hidden}
+#progress-fill{height:100%;background:var(--navy);transition:width .4s}
+#progress-label{text-align:right;font-size:12px;color:var(--sub);margin-top:4px;margin-bottom:16px}
+
+/* Unit card */
+.unit-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:24px}
+.unit-title{background:var(--navy-dk);color:#fff;border-radius:6px 6px 0 0;padding:10px 16px;font-weight:700;font-size:16px;margin:-24px -24px 20px}
+.unit-num{font-size:12px;opacity:.7;margin-bottom:2px}
+
+/* Questions */
+.q-block{padding:14px 0;border-bottom:1px solid #eee}
+.q-block:last-of-type{border-bottom:none}
+.q-text{font-size:14px;font-weight:500;margin-bottom:10px;line-height:1.6}
+.score-row{display:flex;gap:8px;flex-wrap:wrap}
+.score-btn{width:44px;height:44px;border-radius:6px;border:1.5px solid #cdd5e0;background:var(--white);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;position:relative}
+.score-btn:hover{border-color:var(--navy);color:var(--navy)}
+.score-btn.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+.score-btn[data-v="N"]{font-size:12px;color:var(--sub)}
+.score-btn[data-v="N"].sel{background:#78909c;border-color:#78909c;color:#fff}
+.example-box{margin-top:10px;display:none}
+.example-box.show{display:block}
+.example-box textarea{width:100%;padding:8px 10px;border:1.5px solid #cdd5e0;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px}
+.example-box label{font-size:12px;color:var(--sub);margin-bottom:4px}
+
+/* Feedback */
+.fb-section{margin-top:20px;padding-top:16px;border-top:2px dashed #eee}
+.fb-section h4{color:var(--navy-dk);font-size:15px;font-weight:700;margin-bottom:12px}
+.fb-section textarea{width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:6px;font-family:inherit;font-size:14px;resize:vertical;min-height:80px}
+
+/* Nav buttons */
+.nav-row{display:flex;gap:12px;margin-top:20px}
+.nav-row .btn{flex:1}
+
+/* Admin */
+#admin-screen{max-width:900px}
+.admin-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.admin-tab{flex:1;padding:12px;text-align:center;font-weight:500;cursor:pointer;background:var(--white);border:none;font-family:inherit;font-size:14px;transition:.2s}
+.admin-tab.active{background:var(--navy-dk);color:#fff}
+.filter-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.filter-row select{width:auto;flex:1;min-width:140px}
+.result-table{width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.result-table th{background:var(--navy-dk);color:#fff;padding:10px 14px;font-size:13px;text-align:left}
+.result-table td{padding:9px 14px;font-size:13px;border-bottom:1px solid #eee}
+.result-table tr:last-child td{border-bottom:none}
+.result-table tr:hover td{background:#f8f9fc}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.tag-done{background:var(--ok-lt);color:var(--ok)}
+.tag-pending{background:#fff3e0;color:#e65100}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-box{background:var(--white);border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:28px;font-weight:700;color:var(--navy-dk)}
+.stat-lbl{font-size:12px;color:var(--sub);margin-top:4px}
+.detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;overflow-y:auto;padding:20px}
+.detail-overlay.show{display:flex;align-items:flex-start;justify-content:center}
+.detail-modal{background:var(--white);border-radius:var(--radius);max-width:700px;width:100%;padding:28px;margin:auto;position:relative}
+.detail-modal h3{color:var(--navy-dk);margin-bottom:16px}
+.close-btn{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub)}
+.score-chip{display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:4px;font-size:13px;font-weight:700;background:var(--navy-lt);color:var(--navy-dk)}
+.score-chip.s5{background:#c8e6c9;color:#1b5e20}
+.score-chip.s1,.score-chip.s2{background:#ffccbc;color:#bf360c}
+.score-chip.sN{background:#eeeeee;color:#666}
+.q-row-detail{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.q-row-detail .q-num{min-width:24px;color:var(--sub)}
+.q-row-detail .q-lbl{flex:1;line-height:1.5}
+.export-btn{margin-bottom:16px}
+
+/* Loading */
+.loading{text-align:center;padding:40px;color:var(--sub)}
+.spinner{width:32px;height:32px;border:3px solid var(--navy-lt);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Confirm */
+.confirm-screen{text-align:center;padding:40px 20px}
+.confirm-icon{font-size:56px;margin-bottom:16px}
+.confirm-screen h2{color:var(--ok);margin-bottom:8px}
+.confirm-screen p{color:var(--sub);margin-bottom:24px;font-size:14px}
+
+/* Self-select popup */
+.popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300}
+.popup-overlay.show{display:flex;align-items:center;justify-content:center}
+.popup-box{background:var(--white);border-radius:var(--radius);padding:28px;max-width:400px;width:90%}
+.popup-box h3{color:var(--navy-dk);margin-bottom:16px}
+.opt-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.opt-btn{padding:10px 14px;border:1.5px solid #cdd5e0;border-radius:6px;background:var(--white);text-align:left;font-size:14px;cursor:pointer;font-family:inherit}
+.opt-btn:hover,.opt-btn.sel{border-color:var(--navy);background:var(--navy-lt);color:var(--navy-dk);font-weight:500}
+
+/* ── Score guide ── */
+.score-guide{background:#f0f4f8;border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:4px solid var(--navy)}
+.score-guide-title{font-weight:700;font-size:13px;color:var(--navy-dk);margin-bottom:8px}
+.score-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:13px;margin-bottom:8px}
+.score-guide-grid span strong{display:inline-block;min-width:16px;color:var(--navy-dk)}
+.score-guide-note{font-size:12px;color:var(--red);font-weight:500}
+
+/* ── Freq section ── */
+.freq-section{background:var(--navy-lt);border-radius:8px;padding:14px 16px;margin-bottom:20px}
+.freq-title{font-size:14px;font-weight:700;color:var(--navy-dk);margin-bottom:10px}
+.freq-opts{display:flex;flex-direction:column;gap:8px}
+.freq-opt{display:flex;align-items:flex-start;gap:8px;font-size:14px;cursor:pointer;padding:8px 10px;border-radius:6px;border:1.5px solid #cdd5e0;background:#fff;transition:.2s}
+.freq-opt.sel{border-color:var(--navy);background:var(--navy-lt);color:var(--navy-dk);font-weight:500}
+.freq-opt input{margin-top:2px;flex-shrink:0;accent-color:var(--navy)}
+
+/* ── Q desc ── */
+.q-desc{font-size:13px;color:var(--sub);margin-top:3px;margin-bottom:10px;line-height:1.6}
+</style></head><body>
+
+<div id="header">
+  <span class="brand">GU+ 跨單位評核</span>
+  <span id="user-badge"></span>
+  <span class="sub">2026 年度評核</span>
+</div>
+
+<!-- Login -->
+<div id="login-screen" class="screen active">
+  <div class="card">
+    <h2>員工登入</h2>
+    <p class="desc">請輸入姓名與出生年月日，系統將自動帶入您的評核名單。<br>所有資料加密儲存，僅 HR 可查閱。</p>
+    <div class="form-group">
+      <label>姓名</label>
+      <input type="text" id="login-name" placeholder="請輸入中文姓名" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label>出生年月日</label>
+      <input type="date" id="login-birth" max="2009-12-31">
+    </div>
+    <p class="err" id="login-err">查無此員工，請確認姓名或出生年月日。</p>
+    <button class="btn btn-primary" onclick="doLogin()">登入並開始填寫</button>
+    <div style="margin-top:16px;text-align:center">
+      <button class="btn btn-secondary btn-sm" onclick="goAdmin()">HR 管理後台</button>
+    </div>
+  </div>
+</div>
+
+<!-- Self-select popup: ③ 後勤單位清單 -->
+<div class="popup-overlay" id="unit3-overlay">
+  <div class="popup-box">
+    <h3>③ 請選擇後勤評核單位</h3>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:14px">人資指定您評核以下其中一個後勤單位，請選擇：</p>
+    <div class="opt-list" id="unit3-opts"></div>
+    <button class="btn btn-primary" style="margin-top:4px" onclick="confirmUnit3()">確認選擇</button>
+  </div>
+</div>
+
+<!-- Self-select popup: ④ 自選文字輸入 -->
+<div class="popup-overlay" id="selfselect-overlay">
+  <div class="popup-box">
+    <h3>④ 自選回饋對象 <span style="font-size:13px;font-weight:400;color:var(--sub)">（選填）</span></h3>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:6px">此欄為額外回饋，<strong>不列入積分計算</strong>。</p>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:14px">請輸入您想回饋的部門名稱或人員姓名（可填部門、醫師或特定同仁）。</p>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>部門 / 姓名 <span style="color:var(--sub);font-weight:400;font-size:12px">（選填）</span></label>
+      <input type="text" id="selfselect-custom" placeholder="例：行銷公關部、王小明 醫師…" autocomplete="off">
+    </div>
+    <p style="font-size:12px;color:var(--sub);margin-bottom:16px">若不需填寫自選回饋，可直接點「略過」。</p>
+    <button class="btn btn-primary" onclick="confirmSelfSelect()">確認並開始評核</button>
+    <button class="btn btn-secondary" onclick="skipSelfSelect()" style="margin-top:8px;width:100%">略過，開始評核</button>
+  </div>
+</div>
+
+<!-- Low score reason popup -->
+<div class="popup-overlay" id="lowscore-overlay">
+  <div class="popup-box" style="max-width:460px">
+    <h3>⚠️ 請說明低分原因</h3>
+    <p id="lowscore-desc" style="font-size:13px;color:var(--sub);margin-bottom:14px"></p>
+    <div class="form-group" style="margin-bottom:8px">
+      <label>說明原因 <span style="color:var(--red)">*</span></label>
+      <textarea id="lowscore-input" rows="4" placeholder="請描述具體原因或改善建議…"
+        style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:6px;font-family:inherit;font-size:14px;resize:vertical"></textarea>
+      <p class="err" id="lowscore-err" style="margin-top:6px">此欄位為必填，請說明原因後繼續。</p>
+    </div>
+    <button class="btn btn-primary" onclick="confirmLowScore()" style="margin-top:8px">確認並繼續</button>
+  </div>
+</div>
+
+<!-- Detail overlay (admin) -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-modal">
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- Eval screen -->
+<div id="eval-screen" class="screen">
+  <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+  <p id="progress-label"></p>
+  <div id="eval-cards"></div>
+  <div id="nav-err" style="display:none;background:#fff3cd;color:#7a5800;border:1px solid #f0c040;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:8px"></div>
+  <div class="nav-row">
+    <button class="btn btn-secondary" id="btn-prev" onclick="prevUnit()">← 上一個</button>
+    <button class="btn btn-primary" id="btn-next" onclick="nextUnit()">下一個 →</button>
+  </div>
+</div>
+
+<!-- Confirm screen -->
+<div id="confirm-screen" class="screen">
+  <div class="card confirm-screen">
+    <div class="confirm-icon">✅</div>
+    <h2>評核已送出！</h2>
+    <p>感謝你完成評核，資料已安全儲存。<br>HR 團隊將彙整所有結果。</p>
+    <button class="btn btn-secondary" onclick="reLogin()" style="width:100%">返回登入</button>
+  </div>
+</div>
+
+<!-- Admin login screen -->
+<div id="admin-login-screen" class="screen">
+  <div class="card">
+    <h2>HR 後台登入</h2>
+    <p class="desc">請輸入管理密碼以進入後台。</p>
+    <div class="form-group">
+      <label>管理密碼</label>
+      <input type="password" id="admin-pwd-input" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')checkAdminPwd()">
+    </div>
+    <p class="err" id="admin-pwd-err">密碼錯誤，請再試一次。</p>
+    <button class="btn btn-primary" onclick="checkAdminPwd()">進入後台</button>
+    <div style="margin-top:12px;text-align:center">
+      <button class="btn btn-secondary btn-sm" onclick="goLogin()">← 返回員工登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin screen -->
+<div id="admin-screen" class="screen" style="max-width:900px">
+  <div class="card" style="margin-bottom:20px;padding:20px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <h2 style="flex:1">HR 評核管理後台</h2>
+      <button class="btn btn-secondary btn-sm" onclick="goAdmin()">← 返回</button>
+    </div>
+    <div class="stat-grid" id="stat-grid">
+      <div class="loading"><div class="spinner"></div>載入中…</div>
+    </div>
+  </div>
+  <div class="card" style="padding:20px">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchTab('all')">全部</button>
+      <button class="admin-tab" onclick="switchTab('site')">院區員工</button>
+      <button class="admin-tab" onclick="switchTab('hq')">後勤集團</button>
+    </div>
+    <div class="filter-row">
+      <select id="filter-branch" onchange="renderTable()">
+        <option value="">全部院區／部門</option>
+        <option>大安院區</option>
+        <option>中山院區</option>
+        <option>桃園院區</option>
+        <option>台中院區</option>
+        <option>集團辦公室</option>
+      </select>
+      <select id="filter-status" onchange="renderTable()">
+        <option value="">全部狀態</option>
+        <option value="done">已完成</option>
+        <option value="pending">未填寫</option>
+      </select>
+    </div>
+    <div id="result-area"><div class="loading"><div class="spinner"></div>載入中…</div></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════
+   BIRTH DATE LOOKUP (YYYYMMDD)
+═══════════════════════════════ */
+const BIRTH = {"施昱光":"19970822","薛晴":"19990501","林湘如":"19990921","林宜螢":"19971106","劉羽倢":"19990207","葉瀞嵐":"19991006","詹惟凱":"19930402","李香怡":"19931012","林品儀":"19870304","楊舒涵":"19970819","楊芳綺":"19880921","周薇":"19970125","楊秀媖":"19920724","簡婉婷":"19970908","蔡馨婷":"19950401","林杏茹":"19930315","任浩愷":"19930709","曾琦涵":"19960601","王之嫺":"19980328","鄭伊娜":"19941025","陳姿妤":"20010731","洪瑞德":"19950920","張仕盟":"19941210","邱紀翔":"19940415","陳姿吟":"19950815","潘沁苓":"19821022","王美雲":"19921116","温雅涵":"19890305","許嘉琪":"19970903","鄭淳恩":"19951110","林宥辰":"19960226","賴琬霖":"19980201","周璇":"19930316","梁詩韻":"19950410","賴怡蒨":"19950220","湯羚羢":"20000913","李映嬋":"19930303","張漢東":"19820526","施昀佑":"19971114","曾亭薰":"19870819","連宇棋":"19911104","許晉嘉":"19871229","李芃":"19990313","曾鋕仰":"19981229","楊靖婕":"19990711","李旻軒":"19970807","蕭沛妤":"19930722","張舒閔":"19960310","陳虹妤":"19960108","賀子庭":"19901102","黃詩媛":"20020421","湯貽靖":"19920412","杜亞芮":"20000107","莊景淳":"19990130","楊竣安":"19890609","李羽絜":"19990222","陳右振":"19841022","黃永儀":"19841122","曾翊庭":"19950515","張力元":"20000503","劉雅婷":"19810416","楊美妮":"19690519","林思彤":"19700824","郭宜婷":"19960317","陳謹儀":"19891005","廖珮芸":"19920811","陳如欣":"19920124","梁佩瑜":"19891011","蕭怡萍":"19951104","孫天心":"19931010","周宜萱":"19940508","李騏佑":"19920921","李旻芳":"19910327","洪宸沛":"19800311","許巧霓":"19890226","劉帛縉":"19880902","祁義民":"19750206","張又心":"19920505","陳琳諭":"20040525","石慧倫":"19950713","何君美":"19951001","彭家瑋":"19961025"};
+
+const ADMIN_PWD = '08493';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxpnZj8jIbaObacDzglW50Rl72o8omz_U9NycL7OGZD7fumvygGNPUnMnQREc7YnAwBeQ/exec';
+
+/* ═══════════════════════════════
+   EMPLOYEE DATABASE
+═══════════════════════════════ */
+const EMPLOYEES = [
+/* 大安院區 */
+{name:'施昱光',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師','採購&總務',null]},
+{name:'薛晴',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'林湘如',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'林宜螢',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'劉羽倢',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'葉瀞嵐',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'詹惟凱',branch:'大安院區',dept:'護理',units:['大安行政','大安藥師',null,null]},
+{name:'李香怡',branch:'大安院區',dept:'行政',units:['大安護理','大安藥師',null,null]},
+{name:'林品儀',branch:'大安院區',dept:'行政',units:['大安護理','大安藥師',null,null]},
+{name:'楊舒涵',branch:'大安院區',dept:'藥師',units:['大安護理','大安行政',null,null]},
+/* 中山院區 */
+{name:'楊芳綺',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師','採購&總務',null]},
+{name:'周薇',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'楊秀媖',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'簡婉婷',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'蔡馨婷',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'林杏茹',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'任浩愷',branch:'中山院區',dept:'護理',units:['中山行政','中山藥師',null,null]},
+{name:'曾琦涵',branch:'中山院區',dept:'行政',units:['中山護理','中山藥師','採購&總務',null]},
+{name:'王之嫺',branch:'中山院區',dept:'行政',units:['中山護理','中山藥師',null,null]},
+{name:'鄭伊娜',branch:'中山院區',dept:'行政',units:['中山護理','中山藥師',null,null]},
+{name:'陳姿妤',branch:'中山院區',dept:'行政',units:['中山護理','中山藥師',null,null]},
+{name:'洪瑞德',branch:'中山院區',dept:'藥師',units:['中山行政','中山護理',null,null]},
+{name:'張仕盟',branch:'中山院區',dept:'藥師',units:['中山行政','中山護理',null,null]},
+/* 桃園院區 */
+{name:'邱紀翔',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師','採購&總務',null]},
+{name:'陳姿吟',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'潘沁苓',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'王美雲',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'温雅涵',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'許嘉琪',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'鄭淳恩',branch:'桃園院區',dept:'護理',units:['桃園行政','桃園藥師',null,null]},
+{name:'林宥辰',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師','採購&總務',null]},
+{name:'賴琬霖',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師',null,null]},
+{name:'周璇',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師',null,null]},
+{name:'梁詩韻',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師',null,null]},
+{name:'賴怡蒨',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師',null,null]},
+{name:'湯羚羢',branch:'桃園院區',dept:'行政',units:['桃園護理','桃園藥師',null,null]},
+{name:'李映嬋',branch:'桃園院區',dept:'藥師',units:['桃園行政','桃園護理',null,null]},
+{name:'張漢東',branch:'桃園院區',dept:'藥師',units:['桃園行政','桃園護理',null,null]},
+/* 台中院區 */
+{name:'施昀佑',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師','採購&總務',null]},
+{name:'曾亭薰',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'連宇棋',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'許晉嘉',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'李芃',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'曾鋕仰',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'楊靖婕',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'李旻軒',branch:'台中院區',dept:'護理',units:['台中行政','台中藥師',null,null]},
+{name:'蕭沛妤',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師','採購&總務',null]},
+{name:'張舒閔',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師',null,null]},
+{name:'陳虹妤',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師',null,null]},
+{name:'賀子庭',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師',null,null]},
+{name:'黃詩媛',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師',null,null]},
+{name:'湯貽靖',branch:'台中院區',dept:'行政',units:['台中護理','台中藥師',null,null]},
+{name:'杜亞芮',branch:'台中院區',dept:'藥師',units:['台中行政','台中護理',null,null]},
+{name:'莊景淳',branch:'台中院區',dept:'藥師',units:['台中行政','台中護理',null,null]},
+/* 集團辦公室 HQ */
+{name:'楊竣安',branch:'集團辦公室',dept:'事業開發部',units:['人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'李羽絜',branch:'集團辦公室',dept:'事業開發部',units:['人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'陳右振',branch:'集團辦公室',dept:'醫務營運部',units:['人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'黃永儀',branch:'集團辦公室',dept:'醫務營運部',units:['人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'曾翊庭',branch:'集團辦公室',dept:'業務開發部',units:['人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'張力元',branch:'集團辦公室',dept:'專業督導小組',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','資訊部']},
+{name:'劉雅婷',branch:'集團辦公室',dept:'專業督導小組',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','資訊部']},
+{name:'楊美妮',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'林思彤',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'郭宜婷',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'陳謹儀',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'廖珮芸',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'陳如欣',branch:'集團辦公室',dept:'管理部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'梁佩瑜',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'蕭怡萍',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'孫天心',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'周宜萱',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'李騏佑',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'李旻芳',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'洪宸沛',branch:'集團辦公室',dept:'品質客服部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','專業督導小組','資訊部']},
+{name:'許巧霓',branch:'集團辦公室',dept:'人力資源部',units:['營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'劉帛縉',branch:'集團辦公室',dept:'人力資源部',units:['營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部']},
+{name:'祁義民',branch:'集團辦公室',dept:'資訊部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組']},
+{name:'張又心',branch:'集團辦公室',dept:'行銷公關部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','品質客服部','專業督導小組','資訊部']},
+{name:'陳琳諭',branch:'集團辦公室',dept:'行銷公關部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','品質客服部','專業督導小組','資訊部']},
+{name:'石慧倫',branch:'集團辦公室',dept:'行銷公關部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','品質客服部','專業督導小組','資訊部']},
+{name:'何君美',branch:'集團辦公室',dept:'行銷公關部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','品質客服部','專業督導小組','資訊部']},
+{name:'彭家瑋',branch:'集團辦公室',dept:'行銷公關部',units:['人力資源部','營運部（醫務營運＋業務開發）','事業開發部','會計','採購＋總務','品質客服部','專業督導小組','資訊部']},
+];
+
+const SITE_SELF_OPTS = ['營運部（醫務營運＋業務開發）','人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部'];
+const NURSE_LEADER_SELF_OPTS = ['營運部（醫務營運＋業務開發）','人力資源部','事業開發部','會計','採購＋總務','行銷公關部','品質客服部','專業督導小組','資訊部'];
+
+const QUESTIONS = [
+  { t: '溝通與尊重', d: '清楚說明資訊、聆聽需求，並尊重地回應詢問或不同意見。' },
+  { t: '回應及進度告知', d: '依需求急迫性及約定時間回應，說明窗口、預計時程或處理進度。' },
+  { t: '交付品質', d: '資料、支援或作業成果符合需求及規範；發現錯誤時及時修正。' },
+  { t: '約定時效', d: '依約定完成交接或交付；預期延誤時提前告知並協調安排。' },
+  { t: '問題承接與追蹤', d: '遇權責不明的問題，協助釐清窗口、協調處理，追蹤至交接或結果確認。' },
+  { t: '突發需求支援', d: '在職責、資源及規範允許下協助；無法支援時說明限制並協調替代方案。' },
+  { t: '資訊與資源共享', d: '在權限及規範允許下，及時提供合作所需資訊、經驗或資源，說明使用限制。' },
+  { t: '流程改善合作', d: '對已提出的流程問題共同檢討，討論可行調整，執行已確認的改善措施。（若本期無跨單位流程議題，請填 N）' },
+  { t: '歧見處理', d: '意見不同時，就事實、需求及共同目標討論，協調可執行的處理方式。' },
+  { t: '整體合作感受', d: '□ 5 非常滿意　□ 4 滿意　□ 3 普通　□ 2 不滿意　□ 1 非常不滿意　□ N 無法評估' },
+];
+
+/* ═══════════════════════════════
+   STATE
+═══════════════════════════════ */
+let db = null;
+let currentEmp = null;       // matched employee record
+let currentUnits = [];       // final list of units (after self-select resolved)
+let currentUnitIdx = 0;
+let currentSelfUnit = null;   // 自選對象（不計分）
+let answers = {};            // { unitName: { scores:[..], examples:[..], fb:'' } }
+let adminSubmissions = [];
+let adminTab = 'all';
+
+/* ═══════════════════════════════
+   INIT
+═══════════════════════════════ */
+// No db/login required — submissions go directly to Google Sheets via GAS
+
+/* ═══════════════════════════════
+   SCREEN SWITCHING
+═══════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goLogin() { showScreen('login-screen'); }
+function goAdmin() {
+  document.getElementById('admin-pwd-input').value = '';
+  document.getElementById('admin-pwd-err').classList.remove('show');
+  showScreen('admin-login-screen');
+  setTimeout(() => document.getElementById('admin-pwd-input').focus(), 100);
+}
+
+function checkAdminPwd() {
+  const pwd = document.getElementById('admin-pwd-input').value;
+  if (pwd !== ADMIN_PWD) {
+    document.getElementById('admin-pwd-err').classList.add('show');
+    document.getElementById('admin-pwd-input').value = '';
+    return;
+  }
+  showScreen('admin-screen');
+  loadAdmin();
+}
+function reLogin() {
+  currentEmp = null; currentUnits = []; currentUnitIdx = 0; answers = {};
+  document.getElementById('login-name').value='';
+  document.getElementById('login-birth').value='';
+  document.getElementById('login-err').classList.remove('show');
+  showScreen('login-screen');
+}
+
+/* ═══════════════════════════════
+   LOGIN
+═══════════════════════════════ */
+function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const birth = document.getElementById('login-birth').value;
+  const err = document.getElementById('login-err');
+  err.classList.remove('show');
+  if (!name || !birth) { err.textContent='請填寫姓名與出生年月日。'; err.classList.add('show'); return; }
+
+  const emp = EMPLOYEES.find(e => e.name === name);
+  if (!emp) { err.classList.add('show'); return; }
+
+  // Verify birth date
+  const birthKey = birth.replace(/-/g,'');
+  if (BIRTH[name] && BIRTH[name] !== birthKey) {
+    err.textContent='姓名與出生年月日不符，請確認後再試。';
+    err.classList.add('show');
+    return;
+  }
+
+  const docKey = `response_${name}_${birthKey}`;
+
+  // Show user badge
+  document.getElementById('user-badge').textContent = `👤 ${name}`;
+  document.getElementById('user-badge').style.display='';
+
+  currentEmp = { ...emp, docKey };
+
+  // Check if has self-select slots (nulls in units)
+  // units[2] = ③ 後勤單位（清單選擇），units[3] = ④ 自選回饋（自填，選填）
+  const hasUnit3 = currentEmp.units.length > 2 && currentEmp.units[2] === null;
+  const hasUnit4 = currentEmp.units.length > 3 && currentEmp.units[3] === null;
+  if (hasUnit3) {
+    showUnit3Select();
+  } else if (hasUnit4) {
+    showSelfSelect();
+  } else {
+    startEval(currentEmp.units.filter(u => u !== null));
+  }
+}
+
+/* Self-select ③ 後勤單位清單 */
+function showUnit3Select() {
+  const opts = document.getElementById('unit3-opts');
+  opts.innerHTML = SITE_SELF_OPTS.map(o =>
+    `<button class="opt-btn" onclick="selectUnit3('${o}')">${o}</button>`
+  ).join('');
+  document.getElementById('unit3-overlay').classList.add('show');
+}
+
+let _selectedUnit3 = null;
+function selectUnit3(name) {
+  _selectedUnit3 = name;
+  document.querySelectorAll('#unit3-opts .opt-btn').forEach(b => {
+    b.classList.toggle('sel', b.textContent === name);
+  });
+}
+
+function confirmUnit3() {
+  if (!_selectedUnit3) return;
+  document.getElementById('unit3-overlay').classList.remove('show');
+  // Fill null at index 2
+  currentEmp = { ...currentEmp, units: currentEmp.units.map((u, i) => i === 2 && u === null ? _selectedUnit3 : u) };
+  _selectedUnit3 = null;
+  // Check if ④ also needed
+  const hasUnit4 = currentEmp.units.length > 3 && currentEmp.units[3] === null;
+  if (hasUnit4) {
+    showSelfSelect();
+  } else {
+    startEval(currentEmp.units.filter(u => u !== null));
+  }
+}
+
+/* Self-select ④ 自選回饋（自填，選填） */
+function showSelfSelect() {
+  document.getElementById('selfselect-custom').value = '';
+  document.getElementById('selfselect-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('selfselect-custom').focus(), 100);
+}
+
+function confirmSelfSelect() {
+  const val = document.getElementById('selfselect-custom').value.trim();
+  document.getElementById('selfselect-overlay').classList.remove('show');
+  const units = currentEmp.units.map(u => u === null ? (val || null) : u);
+  const finalUnits = units.filter(u => u !== null);
+  startEval(finalUnits, val || null);
+}
+
+function skipSelfSelect() {
+  document.getElementById('selfselect-overlay').classList.remove('show');
+  const units = currentEmp.units.filter(u => u !== null);
+  startEval(units, null);
+}
+
+/* ═══════════════════════════════
+   EVAL FLOW
+═══════════════════════════════ */
+function startEval(units, selfUnit) {
+  currentUnits = units;
+  currentSelfUnit = selfUnit; // 自選單位名稱（不計分）
+  currentUnitIdx = 0;
+  answers = {};
+  units.forEach(u => {
+    answers[u] = {
+      scores: new Array(10).fill(null),
+      examples: new Array(10).fill(''),
+      frequency: null,         // 合作頻率
+      fbGood: '',              // 值得肯定的表現
+      fbImprove: '',           // 最希望改善的一件事
+      fbCooperate: '',         // 我方可配合事項（選填）
+      lowScoreReason: '',
+    };
+  });
+  showScreen('eval-screen');
+  renderUnit();
+}
+
+function renderUnit() {
+  const total = currentUnits.length;
+  const idx = currentUnitIdx;
+  const unit = currentUnits[idx];
+  const isSelf = unit === currentSelfUnit;
+  const pct = (idx / total) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `第 ${idx+1} / ${total} 個單位：${unit}${isSelf?' （自選回饋，不計分）':''}`;
+
+  document.getElementById('btn-prev').style.visibility = idx > 0 ? 'visible' : 'hidden';
+  document.getElementById('btn-next').textContent = idx < total-1 ? '下一個 →' : '✅ 提交評核';
+
+  const data = answers[unit];
+
+  let html = `<div class="unit-card">
+    <div class="unit-title">
+      <div class="unit-num">評核單位 ${idx+1}${isSelf?' ｜ 自選回饋（不計分）':''}</div>
+      ${unit}
+    </div>
+
+    <!-- 評分說明 -->
+    <div class="score-guide">
+      <div class="score-guide-title">📌 評分說明</div>
+      <div class="score-guide-grid">
+        <span><strong>5</strong> 明顯優於期待</span>
+        <span><strong>4</strong> 符合並略超期待</span>
+        <span><strong>3</strong> 符合基本期待</span>
+        <span><strong>2</strong> 部分未達期待</span>
+        <span><strong>1</strong> 明顯未達期待</span>
+        <span><strong>N</strong> 本期無接觸／無法評估</span>
+      </div>
+      <div class="score-guide-note">給 <strong>1、2 或 5</strong> 分時，請在下方具體事例欄補充說明。</div>
+    </div>
+
+    <!-- 合作頻率 -->
+    <div class="freq-section">
+      <p class="freq-title">合作頻率 <span style="font-size:12px;color:var(--sub);font-weight:400">（僅供人資彙整參考，不影響計分）</span></p>
+      <div class="freq-opts">
+        ${['無實際往來（勾選後可略過評分直接送出）','每週至少一次','每月至少一次（未達每週）','少於每月一次'].map((f,fi) => `
+          <label class="freq-opt${data.frequency===fi?' sel':''}">
+            <input type="radio" name="freq-${idx}" value="${fi}" ${data.frequency===fi?'checked':''} onchange="setFrequency(${fi})">
+            ${f}
+          </label>`).join('')}
+      </div>
+    </div>`;
+
+  // 無實際往來 → 只顯示提示
+  if (data.frequency === 0) {
+    html += `<div style="padding:20px;background:var(--navy-lt);border-radius:8px;margin:16px 0;text-align:center;color:var(--navy-dk);font-size:14px">
+      ✅ 已選擇「無實際往來」，可直接按下方按鈕繼續。
+    </div>`;
+  } else {
+    // 題目
+    QUESTIONS.forEach((q, qi) => {
+      const score = data.scores[qi];
+      const example = data.examples[qi];
+      const showEx = score === 1 || score === 2 || score === 5;
+      html += `<div class="q-block" id="qblock-${qi}">
+        <p class="q-text">${qi+1}. ${q.t}</p>
+        <p class="q-desc">${q.d}</p>
+        <div class="score-row">
+          ${[1,2,3,4,5,'N'].map(v=>`
+            <button class="score-btn${score==v?' sel':''}" data-v="${v}" onclick="setScore(${qi},'${v}')">
+              ${v === 'N' ? 'N/A' : v}
+            </button>`).join('')}
+        </div>
+        <div class="example-box${showEx?' show':''}" id="ex-${qi}">
+          <label>具體事例 <span style="color:var(--sub);font-weight:400;font-size:12px">（選填，但給 1、2、5 分時建議說明，幫助對方了解背景）</span></label>
+          <textarea placeholder="例：某次報告截止前 XX 主動協助整理資料，讓流程順利完成；或某次溝通反覆確認仍出錯，影響後續作業…" oninput="setExample(${qi},this.value)">${example||''}</textarea>
+        </div>
+      </div>`;
+    });
+
+    // 整體回饋三欄
+    html += `<div class="fb-section">
+      <h4>💬 回饋與建言</h4>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>✅ 值得肯定的表現與幫助 <span style="color:var(--sub);font-weight:400;font-size:12px">（選填）</span></label>
+        <textarea placeholder="請描述本期合作中特別值得肯定之處…" rows="3"
+          oninput="setFeedback('${unit}','fbGood',this.value)">${data.fbGood||''}</textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>🔧 最希望優先改善的一件事及建議 <span style="color:var(--sub);font-weight:400;font-size:12px">（選填）</span></label>
+        <textarea placeholder="請描述希望改善的具體事項及建議方向…" rows="3"
+          oninput="setFeedback('${unit}','fbImprove',this.value)">${data.fbImprove||''}</textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label>🤝 我方可配合事項 <span style="color:var(--sub);font-weight:400;font-size:12px">（選填）</span></label>
+        <textarea placeholder="本部門可提供的配合或協助…" rows="2"
+          oninput="setFeedback('${unit}','fbCooperate',this.value)">${data.fbCooperate||''}</textarea>
+      </div>
+    </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('eval-cards').innerHTML = html;
+  window.scrollTo(0, 0);
+}
+
+function setScore(qi, v) {
+  const unit = currentUnits[currentUnitIdx];
+  const val = v === 'N' ? 'N' : parseInt(v);
+  answers[unit].scores[qi] = val;
+
+  // Re-render just the score row + example box without full re-render
+  const block = document.getElementById(`qblock-${qi}`);
+  block.querySelectorAll('.score-btn').forEach(b => {
+    b.classList.toggle('sel', b.dataset.v == v);
+  });
+  const showEx = val === 1 || val === 2 || val === 5;
+  document.getElementById(`ex-${qi}`).classList.toggle('show', showEx);
+}
+
+function setExample(qi, val) {
+  answers[currentUnits[currentUnitIdx]].examples[qi] = val;
+}
+function setFrequency(fi) {
+  const unit = currentUnits[currentUnitIdx];
+  answers[unit].frequency = fi;
+  // Re-render to show/hide questions based on frequency
+  renderUnit();
+}
+function setFeedback(unit, field, val) {
+  answers[unit][field] = val;
+}
+
+let _lowScoreCallback = null;
+function showLowScorePrompt(unit, totalScore, callback) {
+  _lowScoreCallback = callback;
+  document.getElementById('lowscore-desc').textContent =
+    `「${unit}」的評核總分為 ${totalScore} 分（滿分 50 分），低於 30 分，請說明原因。`;
+  document.getElementById('lowscore-input').value = answers[unit].lowScoreReason || '';
+  document.getElementById('lowscore-err').classList.remove('show');
+  document.getElementById('lowscore-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('lowscore-input').focus(), 100);
+}
+
+function confirmLowScore() {
+  const val = document.getElementById('lowscore-input').value.trim();
+  if (!val) {
+    document.getElementById('lowscore-err').classList.add('show');
+    return;
+  }
+  const unit = currentUnits[currentUnitIdx];
+  answers[unit].lowScoreReason = val;
+  document.getElementById('lowscore-overlay').classList.remove('show');
+  if (_lowScoreCallback) { _lowScoreCallback(); _lowScoreCallback = null; }
+}
+
+function prevUnit() {
+  if (currentUnitIdx > 0) { currentUnitIdx--; renderUnit(); }
+}
+
+async function nextUnit() {
+  const unit = currentUnits[currentUnitIdx];
+  const data = answers[unit];
+
+  // 無實際往來 → 直接跳過驗證
+  if (data.frequency === 0) {
+    if (currentUnitIdx < currentUnits.length - 1) {
+      currentUnitIdx++;
+      renderUnit();
+    } else {
+      await submitAll();
+    }
+    return;
+  }
+
+  // 未選合作頻率
+  const navErr = document.getElementById('nav-err');
+  const showErr = msg => { navErr.textContent = msg; navErr.style.display='block'; window.scrollTo(0, document.body.scrollHeight); };
+  navErr.style.display = 'none';
+
+  if (data.frequency === null) {
+    showErr('⚠️ 請先選擇合作頻率後再繼續。');
+    return;
+  }
+
+  // Validate: all questions answered
+  const unanswered = data.scores.map((s,i)=>s===null?i:-1).filter(i=>i>=0);
+  if (unanswered.length) {
+    showErr(`⚠️ 還有 ${unanswered.length} 題未評分（第 ${unanswered.map(i=>i+1).join('、')} 題），請完成後繼續。`);
+    return;
+  }
+  // Check if total score < 30 → require reason before proceeding
+  const numericScores = data.scores.filter(s => typeof s === 'number');
+  const totalScore = numericScores.reduce((a, b) => a + b, 0);
+  if (totalScore < 30 && !data.lowScoreReason) {
+    showLowScorePrompt(unit, totalScore, () => {
+      // callback after reason filled
+      if (currentUnitIdx < currentUnits.length - 1) {
+        currentUnitIdx++;
+        renderUnit();
+      } else {
+        submitAll();
+      }
+    });
+    return;
+  }
+
+  if (currentUnitIdx < currentUnits.length - 1) {
+    currentUnitIdx++;
+    renderUnit();
+  } else {
+    await submitAll();
+  }
+}
+
+function submitAll() {
+  const payload = {
+    name: currentEmp.name,
+    branch: currentEmp.branch,
+    dept: currentEmp.dept,
+    units: currentUnits,
+    answers,
+    submittedAt: new Date().toISOString(),
+  };
+
+  const btn = document.getElementById('btn-next');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+
+  // 標準 POST fetch（GitHub Pages 無 CORS 限制）
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+
+  setTimeout(() => showScreen('confirm-screen'), 3000);
+}
+
+/* ═══════════════════════════════
+   ADMIN
+═══════════════════════════════ */
+async function loadAdmin() {
+  // Submissions stored in Google Sheets — show link and employee status table
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-box" style="grid-column:1/-1;text-align:left;padding:16px 20px">
+      <div style="font-size:14px;color:var(--navy-dk);font-weight:700;margin-bottom:8px">📊 評核資料儲存於 Google 試算表</div>
+      <a href="${GAS_URL.replace('/exec','')}" target="_blank"
+        style="color:var(--navy);font-size:13px;text-decoration:underline">
+        點此開啟 Apps Script（從試算表查看結果）
+      </a>
+      <div style="font-size:12px;color:var(--sub);margin-top:6px">
+        在 Google 試算表中可查看「提交紀錄」「評核明細」「整體回饋」三個工作表。
+      </div>
+    </div>
+    <div class="stat-box"><div class="stat-num">${EMPLOYEES.length}</div><div class="stat-lbl">應填人數</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--sub)">—</div><div class="stat-lbl">已完成（見試算表）</div></div>
+  `;
+  renderTable();
+}
+
+async function loadAllResponses() {
+  if (!db) return;
+  adminSubmissions = [];
+  const found = new Map(); // name → data
+
+  // 1. Try shared submissions/ path (Contributor+ users)
+  try {
+    const snap = await db.collection('submissions').get();
+    if (snap && snap.docs) {
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data && data.name) found.set(data.name, data);
+      });
+    }
+  } catch(e) {}
+
+  // 2. Try idx/ entries (index written alongside private path)
+  try {
+    const snap = await db.collection('idx').get();
+    if (snap && snap.docs) {
+      const privPromises = snap.docs.map(async d => {
+        const idx = d.data();
+        if (!idx || !idx.uid || !idx.name || found.has(idx.name)) return;
+        // Fetch the full private doc
+        try {
+          const full = await db.doc('data/users/' + idx.uid + '/result').get();
+          if (full.exists) found.set(idx.name, full.data());
+        } catch(_) {
+          // Can't read private doc (not owner) — use index data only
+          found.set(idx.name, { name: idx.name, branch: idx.branch, dept: idx.dept, submittedAt: idx.submittedAt, _indexOnly: true });
+        }
+      });
+      await Promise.all(privPromises);
+    }
+  } catch(e) {}
+
+  // 3. Fallback: direct BIRTH-keyed lookup in submissions/
+  if (found.size === 0) {
+    const promises = EMPLOYEES.map(async emp => {
+      if (found.has(emp.name)) return;
+      const birthKey = BIRTH[emp.name];
+      if (!birthKey) return;
+      try {
+        const snap = await db.doc('submissions/response_' + emp.name + '_' + birthKey).get();
+        if (snap.exists) found.set(emp.name, snap.data());
+      } catch(_) {}
+    });
+    await Promise.all(promises);
+  }
+
+  adminSubmissions = [...found.values()].filter(Boolean);
+}
+
+function switchTab(tab) {
+  adminTab = tab;
+  document.querySelectorAll('.admin-tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['all','site','hq'][i]===tab);
+  });
+  renderTable();
+}
+
+function renderStats() {
+  const total = EMPLOYEES.length;
+  const done = adminSubmissions.length;
+  const site = EMPLOYEES.filter(e=>e.branch!=='集團辦公室').length;
+  const hq = EMPLOYEES.filter(e=>e.branch==='集團辦公室').length;
+  const doneSite = adminSubmissions.filter(s=>s.branch!=='集團辦公室').length;
+  const doneHq = adminSubmissions.filter(s=>s.branch==='集團辦公室').length;
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${done}/${total}</div><div class="stat-lbl">整體完成</div></div>
+    <div class="stat-box"><div class="stat-num">${Math.round(done/total*100)||0}%</div><div class="stat-lbl">完成率</div></div>
+    <div class="stat-box"><div class="stat-num">${doneSite}/${site}</div><div class="stat-lbl">院區員工</div></div>
+    <div class="stat-box"><div class="stat-num">${doneHq}/${hq}</div><div class="stat-lbl">後勤集團</div></div>
+  `;
+}
+
+function renderTable() {
+  const branch = document.getElementById('filter-branch').value;
+  const status = document.getElementById('filter-status').value;
+  const doneNames = new Set(adminSubmissions.map(s=>s.name));
+
+  let emps = EMPLOYEES;
+  if (adminTab === 'site') emps = emps.filter(e=>e.branch!=='集團辦公室');
+  if (adminTab === 'hq') emps = emps.filter(e=>e.branch==='集團辦公室');
+  if (branch) emps = emps.filter(e=>e.branch===branch);
+  if (status === 'done') emps = emps.filter(e=>doneNames.has(e.name));
+  if (status === 'pending') emps = emps.filter(e=>!doneNames.has(e.name));
+
+  if (!emps.length) { document.getElementById('result-area').innerHTML='<p style="padding:20px;color:var(--sub)">無資料</p>'; return; }
+
+  let html = `<table class="result-table">
+    <thead><tr>
+      <th>姓名</th><th>院區／部門</th><th>職類</th><th>評核數</th><th>狀態</th><th>操作</th>
+    </tr></thead><tbody>`;
+
+  emps.forEach(emp => {
+    const done = doneNames.has(emp.name);
+    const sub = adminSubmissions.find(s=>s.name===emp.name);
+    const units = sub ? sub.units : emp.units.filter(Boolean);
+    html += `<tr>
+      <td><strong>${emp.name}</strong></td>
+      <td>${emp.branch}</td>
+      <td>${emp.dept}</td>
+      <td>${units.length} 個</td>
+      <td><span class="tag ${done?'tag-done':'tag-pending'}">${done?'已完成':'未填寫'}</span></td>
+      <td>${done?`<button class="btn btn-secondary btn-sm" onclick="viewDetail('${emp.name}')">查看結果</button>`:'-'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('result-area').innerHTML = html;
+}
+
+function viewDetail(name) {
+  const sub = adminSubmissions.find(s=>s.name===name);
+  if (!sub) return;
+  let html = `<h3>📋 ${sub.name} 的評核結果</h3>
+    <p style="color:var(--sub);font-size:13px;margin-bottom:16px">${sub.branch} ／ ${sub.dept}　｜　提交時間：${new Date(sub.submittedAt).toLocaleString('zh-TW')}</p>`;
+
+  sub.units.forEach((unit, ui) => {
+    const data = sub.answers[unit];
+    if (!data) return;
+    const avg = data.scores.filter(s=>s!=='N'&&s!==null).reduce((a,b)=>a+b,0) /
+                data.scores.filter(s=>s!=='N'&&s!==null).length || 0;
+    html += `<div style="margin-bottom:20px">
+      <h4 style="color:var(--navy-dk);margin-bottom:10px">評核 ${ui+1}：${unit}　<small style="font-weight:400;color:var(--sub)">平均 ${avg.toFixed(1)}</small></h4>`;
+    QUESTIONS.forEach((q, qi) => {
+      const s = data.scores[qi];
+      const cls = s===5?'s5':s===1||s===2?'s2':s==='N'?'sN':'';
+      html += `<div class="q-row-detail">
+        <span class="q-num">${qi+1}.</span>
+        <span class="q-lbl">${q.t}</span>
+        <span class="score-chip ${cls}">${s??'—'}</span>
+      </div>`;
+      if (data.examples[qi]) html += `<div style="font-size:12px;color:var(--sub);padding:4px 12px 8px;background:#f8f9fc;border-radius:4px;margin:4px 0 4px 24px">${data.examples[qi]}</div>`;
+    });
+    const fbParts = [
+      data.fbGood && `<div><strong>✅ 值得肯定：</strong>${data.fbGood}</div>`,
+      data.fbImprove && `<div><strong>🔧 希望改善：</strong>${data.fbImprove}</div>`,
+      data.fbCooperate && `<div><strong>🤝 可配合事項：</strong>${data.fbCooperate}</div>`,
+      data.fb && `<div><strong>回饋：</strong>${data.fb}</div>`,
+    ].filter(Boolean).join('');
+    if (fbParts) html += `<div style="margin-top:10px;padding:10px;background:var(--navy-lt);border-radius:6px;font-size:13px">${fbParts}</div>`;
+    const freqLabels = ['無實際往來','每週至少一次','每月至少一次','少於每月一次'];
+    if (data.frequency != null) html += `<div style="font-size:12px;color:var(--sub);margin-top:4px">合作頻率：${freqLabels[data.frequency]||''}</div>`;
+    html += '</div>';
+  });
+
+  document.getElementById('detail-content').innerHTML = html;
+  document.getElementById('detail-overlay').classList.add('show');
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('show');
+}
+</script>
+</body></html>
