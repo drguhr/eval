@@ -761,7 +761,7 @@ async function nextUnit() {
   const data = answers[unit];
 
   const navErr = document.getElementById('nav-err');
-  const showErr = msg => { navErr.textContent = msg; navErr.style.display='block'; window.scrollTo(0, document.body.scrollHeight); };
+  const showErr = msg => { navErr.textContent = msg; navErr.style.display='block'; navErr.scrollIntoView({behavior:'smooth', block:'center'}); };
   navErr.style.display = 'none';
 
   // 無實際往來 → 直接跳過驗證，但仍需走 _advanceOrSelect
@@ -782,7 +782,7 @@ async function nextUnit() {
     // Check if total score < 30 → require reason before proceeding
     const numericScores = data.scores.filter(s => typeof s === 'number');
     const totalScore = numericScores.reduce((a, b) => a + b, 0);
-    if (totalScore < 30 && !data.lowScoreReason) {
+    if (numericScores.length > 0 && totalScore < 30 && !data.lowScoreReason) {
       showLowScorePrompt(unit, totalScore, () => _advanceOrSelect());
       return;
     }
