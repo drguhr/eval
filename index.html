@@ -240,7 +240,6 @@ input:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(53,9
     <div class="confirm-icon">✅</div>
     <h2>評核已送出！</h2>
     <p>感謝你完成評核，資料已安全儲存。<br>HR 團隊將彙整所有結果。</p>
-    <button class="btn btn-primary" onclick="downloadReceipt()" style="width:100%;margin-bottom:10px">📄 下載個人確認單</button>
     <button class="btn btn-secondary" onclick="reLogin()" style="width:100%">返回登入</button>
   </div>
 </div>
@@ -489,84 +488,119 @@ function doLogin() {
 
   const docKey = `response_${name}_${birthKey}`;
 
+  // ── 重複提交防錯：檢查 localStorage ──
+  const submitKey = `guplus_submitted_${name}`;
+  const prevTime = localStorage.getItem(submitKey);
+  if (prevTime) {
+    // 顯示確認提示（DOM-based，不用 confirm()）
+    const prevDateStr = (() => {
+      try {
+        return new Date(prevTime).toLocaleString('zh-TW', {
+          year:'numeric', month:'2-digit', day:'2-digit',
+          hour:'2-digit', minute:'2-digit'
+        });
+      } catch(e) { return prevTime; }
+    })();
+    // 建立確認 modal（動態）
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:10px;padding:28px;max-width:380px;width:90%;font-family:inherit">
+        <div style="font-size:20px;margin-bottom:12px">⚠️</div>
+        <h3 style="color:#1C3D63;margin-bottom:10px;font-size:16px">你已填寫過評核</h3>
+        <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:20px">
+          你已於 <strong>${prevDateStr}</strong> 完成填寫。<br>
+          確定要重新填寫一次嗎？<br>
+          <span style="font-size:12px;color:#888">（若為誤按，請點「取消」）</span>
+        </p>
+        <div style="display:flex;gap:10px">
+          <button id="dup-cancel" style="flex:1;padding:10px;border:1.5px solid #35618A;background:#fff;color:#35618A;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer">取消</button>
+          <button id="dup-confirm" style="flex:1;padding:10px;border:none;background:#35618A;color:#fff;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer">確定重填</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('dup-cancel').onclick = () => { document.body.removeChild(modal); };
+    document.getElementById('dup-confirm').onclick = () => {
+      document.body.removeChild(modal);
+      _startLoginFlow(emp, docKey, name, birthKey);
+    };
+    return;
+  }
+
+  _startLoginFlow(emp, docKey, name, birthKey);
+}
+
+function _startLoginFlow(emp, docKey, name, birthKey) {
   // Show user badge
   document.getElementById('user-badge').textContent = `👤 ${name}`;
   document.getElementById('user-badge').style.display='';
 
   currentEmp = { ...emp, docKey };
 
-  // Check if has self-select slots (nulls in units)
-  // units[2] = ③ 後勤單位（清單選擇），units[3] = ④ 自選回饋（自填，選填）
-  const hasUnit3 = currentEmp.units.length > 2 && currentEmp.units[2] === null;
-  const hasUnit4 = currentEmp.units.length > 3 && currentEmp.units[3] === null;
-  if (hasUnit3) {
-    showUnit3Select();
-  } else if (hasUnit4) {
-    showSelfSelect();
-  } else {
-    startEval(currentEmp.units.filter(u => u !== null));
-  }
-}
+  // 登入後直接開始評核固定單位，null 的部分之後再插入
+  // hasUnit3 = 有後勤自選（null at index 2），hasUnit4 = 有自填自選（null at index 3）
+  const fixedUnits = currentEmp.units.filter(u => u !== null);
+  startEval(fixedUnits, null, {
+    needUnit3: currentEmp.units.includes(null) && currentEmp.units.indexOf(null) === 2,
+    needUnit4: currentEmp.units.filter(u=>u===null).length > 0 &&
+               currentEmp.units.lastIndexOf(null) === 3,
+  });
+}  // end _startLoginFlow
 
-/* Self-select ③ 後勤單位清單 */
-function showUnit3Select() {
+/* Self-select ③ 後勤單位清單 — 評完固定單位後跳出 */
+function showUnit3Select(callback) {
   const opts = document.getElementById('unit3-opts');
   opts.innerHTML = SITE_SELF_OPTS.map(o =>
     `<button class="opt-btn" onclick="selectUnit3('${o}')">${o}</button>`
   ).join('');
   document.getElementById('unit3-overlay').classList.add('show');
+  window._unit3Callback = callback;
 }
 
 let _selectedUnit3 = null;
-function selectUnit3(name) {
-  _selectedUnit3 = name;
+function selectUnit3(n) {
+  _selectedUnit3 = n;
   document.querySelectorAll('#unit3-opts .opt-btn').forEach(b => {
-    b.classList.toggle('sel', b.textContent === name);
+    b.classList.toggle('sel', b.textContent === n);
   });
 }
 
 function confirmUnit3() {
   if (!_selectedUnit3) return;
   document.getElementById('unit3-overlay').classList.remove('show');
-  // Fill null at index 2
-  currentEmp = { ...currentEmp, units: currentEmp.units.map((u, i) => i === 2 && u === null ? _selectedUnit3 : u) };
+  const chosen = _selectedUnit3;
   _selectedUnit3 = null;
-  // Check if ④ also needed
-  const hasUnit4 = currentEmp.units.length > 3 && currentEmp.units[3] === null;
-  if (hasUnit4) {
-    showSelfSelect();
-  } else {
-    startEval(currentEmp.units.filter(u => u !== null));
-  }
+  if (window._unit3Callback) { window._unit3Callback(chosen); window._unit3Callback = null; }
 }
 
-/* Self-select ④ 自選回饋（自填，選填） */
-function showSelfSelect() {
+/* Self-select ④ 自選回饋（自填，選填）— 評完 ③ 後跳出 */
+function showSelfSelect(callback) {
   document.getElementById('selfselect-custom').value = '';
   document.getElementById('selfselect-overlay').classList.add('show');
+  window._selfCallback = callback;
   setTimeout(() => document.getElementById('selfselect-custom').focus(), 100);
 }
 
 function confirmSelfSelect() {
   const val = document.getElementById('selfselect-custom').value.trim();
   document.getElementById('selfselect-overlay').classList.remove('show');
-  const units = currentEmp.units.map(u => u === null ? (val || null) : u);
-  const finalUnits = units.filter(u => u !== null);
-  startEval(finalUnits, val || null);
+  if (window._selfCallback) { window._selfCallback(val || null); window._selfCallback = null; }
 }
 
 function skipSelfSelect() {
   document.getElementById('selfselect-overlay').classList.remove('show');
-  const units = currentEmp.units.filter(u => u !== null);
-  startEval(units, null);
+  if (window._selfCallback) { window._selfCallback(null); window._selfCallback = null; }
 }
 
 /* ═══════════════════════════════
    EVAL FLOW
 ═══════════════════════════════ */
-function startEval(units, selfUnit) {
+let _pendingSelects = {}; // { needUnit3, needUnit4 }
+
+function startEval(units, selfUnit, pending) {
   currentUnits = units;
-  currentSelfUnit = selfUnit; // 自選單位名稱（不計分）
+  currentSelfUnit = selfUnit;
+  _pendingSelects = pending || {};
   currentUnitIdx = 0;
   answers = {};
   units.forEach(u => {
@@ -787,9 +821,50 @@ async function nextUnit() {
   if (currentUnitIdx < currentUnits.length - 1) {
     currentUnitIdx++;
     renderUnit();
-  } else {
-    await submitAll();
+    return;
   }
+
+  // 所有目前單位評完 → 看看還有沒有待選的
+  if (_pendingSelects.needUnit3) {
+    _pendingSelects.needUnit3 = false;
+    showUnit3Select(function(chosen) {
+      // 把 ③ 加進去
+      initUnitAnswer(chosen);
+      currentUnits.push(chosen);
+      currentUnitIdx++;
+      renderUnit();
+      // 評完 ③ 後若還有 ④ 會在下一輪 nextUnit 末段處理
+    });
+    return;
+  }
+
+  if (_pendingSelects.needUnit4) {
+    _pendingSelects.needUnit4 = false;
+    showSelfSelect(function(chosen) {
+      if (chosen) {
+        initUnitAnswer(chosen);
+        currentUnits.push(chosen);
+        currentSelfUnit = chosen;
+        currentUnitIdx++;
+        renderUnit();
+      } else {
+        submitAll();
+      }
+    });
+    return;
+  }
+
+  await submitAll();
+}
+
+function initUnitAnswer(u) {
+  answers[u] = {
+    scores: new Array(10).fill(null),
+    examples: new Array(10).fill(''),
+    frequency: null,
+    fbGood: '', fbImprove: '', fbCooperate: '',
+    lowScoreReason: '',
+  };
 }
 
 function submitAll() {
@@ -806,6 +881,11 @@ function submitAll() {
   btn.disabled = true;
   btn.textContent = '提交中…';
 
+  // 記錄提交時間（用於防重複提交）
+  try {
+    localStorage.setItem(`guplus_submitted_${currentEmp.name}`, payload.submittedAt);
+  } catch(e) {}
+
   // 標準 POST fetch（GitHub Pages 無 CORS 限制）
   fetch(GAS_URL, {
     method: 'POST',
@@ -814,68 +894,6 @@ function submitAll() {
   }).catch(() => {});
 
   setTimeout(() => showScreen('confirm-screen'), 3000);
-}
-
-function downloadReceipt() {
-  const emp = currentEmp;
-  const FREQ_LABELS = ['無實際往來','每週至少一次','每月至少一次（未達每週）','少於每月一次'];
-  const date = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'long',day:'numeric'});
-
-  let body = '';
-  currentUnits.forEach((unit, ui) => {
-    const ans = answers[unit];
-    if (!ans) return;
-    const isSelf = unit === currentSelfUnit;
-    body += `<div style="margin-bottom:24px;padding:16px;border:1px solid #dde;border-radius:8px">`;
-    body += `<div style="font-weight:700;font-size:15px;color:#1C3D63;margin-bottom:8px">評核單位 ${ui+1}：${unit}${isSelf?' （自選，不計分）':''}</div>`;
-    body += `<div style="font-size:13px;color:#555;margin-bottom:10px">合作頻率：${FREQ_LABELS[ans.frequency] ?? '—'}</div>`;
-    if (ans.frequency !== 0) {
-      body += `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px">
-        <tr style="background:#DDE6EC"><th style="padding:6px 8px;text-align:left;border:1px solid #c0ccd8">題目</th><th style="padding:6px 8px;width:50px;border:1px solid #c0ccd8">分數</th><th style="padding:6px 8px;border:1px solid #c0ccd8">具體事例</th></tr>`;
-      QUESTIONS.forEach((q, qi) => {
-        const s = ans.scores[qi];
-        const ex = ans.examples[qi] || '';
-        body += `<tr><td style="padding:6px 8px;border:1px solid #dde">${qi+1}. ${q.t}</td>
-          <td style="padding:6px 8px;border:1px solid #dde;text-align:center;font-weight:700">${s === 'N' ? 'N/A' : (s ?? '—')}</td>
-          <td style="padding:6px 8px;border:1px solid #dde;color:#555">${ex || '—'}</td></tr>`;
-      });
-      body += `</table>`;
-      if (ans.fbGood) body += `<div style="font-size:13px;margin-bottom:6px"><strong>✅ 值得肯定：</strong>${ans.fbGood}</div>`;
-      if (ans.fbImprove) body += `<div style="font-size:13px;margin-bottom:6px"><strong>🔧 希望改善：</strong>${ans.fbImprove}</div>`;
-      if (ans.fbCooperate) body += `<div style="font-size:13px;margin-bottom:6px"><strong>🤝 可配合事項：</strong>${ans.fbCooperate}</div>`;
-      if (ans.lowScoreReason) body += `<div style="font-size:13px;color:#c00"><strong>低分說明：</strong>${ans.lowScoreReason}</div>`;
-    }
-    body += `</div>`;
-  });
-
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>評核確認單</title>
-    <style>
-      body{font-family:'Noto Sans TC',Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px;color:#222}
-      @media print{button{display:none}}
-    </style>
-  </head><body>
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:11px;color:#888;letter-spacing:1px">顧家醫療集團</div>
-      <h1 style="font-size:22px;color:#1C3D63;margin:4px 0">跨單位合作評核確認單</h1>
-      <div style="font-size:13px;color:#555">${date}</div>
-    </div>
-    <div style="display:flex;gap:24px;margin-bottom:20px;padding:12px 16px;background:#f5f7fa;border-radius:8px;font-size:14px">
-      <div><strong>姓名：</strong>${emp.name}</div>
-      <div><strong>院區：</strong>${emp.branch}</div>
-      <div><strong>部門：</strong>${emp.dept}</div>
-    </div>
-    ${body}
-    <div style="margin-top:24px;text-align:center;font-size:12px;color:#aaa">本確認單僅供個人留存，請列印或另存 PDF 保存。</div>
-    <div style="text-align:center;margin-top:16px">
-      <button onclick="window.print()" style="padding:10px 28px;background:#1C3D63;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨️ 列印 / 另存 PDF</button>
-    </div>
-  </body></html>`;
-
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => w.print(), 500);
 }
 
 /* ═══════════════════════════════
